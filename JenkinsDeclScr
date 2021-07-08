@@ -1,0 +1,78 @@
+pipeline{
+
+agent any;
+
+tools{
+
+maven 'maven3.8.1'
+
+}
+
+options{
+timestamps()
+}
+
+stages{
+
+      stage('CheckOutCode'){
+	    steps{
+		git branch: 'development', credentialsId: '6b360cd2-b11e-49cf-90ed-18fe751885f6', url: 'https://github.com/arunpalyam/maven-web-application.git'
+		}  
+	  }
+
+     stage('Build'){
+	    steps{
+		sh "mvn clean package"
+		}
+	 }
+
+	 stage('ExecuteSonarQube Report'){
+	     steps{
+		 sh "mvn sonar:sonar"
+	 }
+	 }
+	 
+	 stage('UploadArtifacts Into Nexus'){
+	     steps{
+		 sh "mvn deploy"
+	 }
+	 }
+	 
+	 stage('Deploy Application Into Tomcat Server'){
+	     steps{
+		 sshagent(['c19ecd8c-ed55-49b1-bdb5-ec049210814d']) {
+   sh "scp -o StrictHostKeyChecking=no target/maven-web-application.war ec2-user@3.6.90.228:/opt/apache-tomcat-9.0.48/webapps"
+	 }
+	 }
+	 }	 
+	 
+	 }
+	 
+	 post{
+	  
+	     success{
+		    emailext body: '''Build over!..Successfull 
+
+
+            Regards
+            Arun''', subject: 'Build Over Successfull', to: 'palyamarun@gmail.com'
+		 }
+		 
+		 failure{
+		  cleanWs()   
+		     emailext body: '''Build over...Failed
+
+
+             Regards
+             Arun''', subject: 'Build Over Failed', to: 'palyamarun@gmail.com'
+			 }
+		 always{
+             emailext body: '''Build over 
+
+
+             Regards
+             Arun''', subject: 'Build Over', to: 'palyamarun@gmail.com'		 
+			 } 
+		 }
+	 
+}
